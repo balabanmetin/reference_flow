@@ -1,18 +1,33 @@
 ''' This snakefile includes rules that perform single-end alignment.'''
 ''' Perform first-pass alignment.'''
-rule align_to_major:
-    input:
-        reads1 = READS1,
-        idx = expand(
-            os.path.join(DIR, 'major/indexes/' + EXP_LABEL + '-maj.{idx}.bt2'),
-            idx = IDX_ITEMS)
-    params:
-        index = os.path.join(DIR, 'major/indexes/' + EXP_LABEL + '-maj')
-    output:
-        sam = os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-major.sam')
-    threads: THREADS
-    shell:
-        'bowtie2 --threads {THREADS} -x {params.index} -U {input.reads1} -S {output.sam}'
+if ALIGNER == 'bowtie2':
+    rule align_to_major:
+        input:
+            reads1 = READS1,
+            idx = expand(
+                os.path.join(DIR, 'major/indexes/' + EXP_LABEL + '-maj.{idx}.bt2'),
+                idx = IDX_ITEMS)
+        params:
+            index = os.path.join(DIR, 'major/indexes/' + EXP_LABEL + '-maj')
+        output:
+            sam = os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-major.sam')
+        threads: THREADS
+        shell:
+            'bowtie2 --threads {THREADS} -x {params.index} -U {input.reads1} -S {output.sam}'
+else:  # 'bwa-mem2'
+    rule align_to_major:
+        input:
+            reads1 = READS1,
+            idx = expand(
+                os.path.join(DIR, 'major/' + EXP_LABEL + '-maj.fa.{idx}'),
+                idx = IDX_ITEMS)
+        params:
+            reference = os.path.join(DIR, 'major/' + EXP_LABEL + '-maj.fa')
+        output:
+            sam = os.path.join(DIR_FIRST_PASS, EXP_LABEL + '-major.sam')
+        threads: THREADS
+        shell:
+            'bwa-mem2 mem -T 0 -t {threads} {params.reference} {input.reads1} | samtools view -h -F 2048 -o {output.sam} -'
 
 ''' Split first-pass alignment into high-quality and low-quality files. '''
 rule refflow_split_aln_by_mapq:
@@ -35,23 +50,34 @@ rule refflow_split_aln_by_mapq:
         'samtools fastq {output.lowq} > {output.lowq_reads}'
 
 ''' Align low-quality reads using population genomes.'''
-rule refflow_align_secondpass_single_end:
-    input:
-        reads1 = os.path.join(DIR_FIRST_PASS,
-            EXP_LABEL + '-major-mapqlt' + ALN_MAPQ_THRSD + '_1.fq'),
-        idx1 = os.path.join(DIR_POP_GENOME_BLOCK_IDX, WG_POP_GENOME_SUFFIX + '.1.bt2'),
-        idx2 = os.path.join(DIR_POP_GENOME_BLOCK_IDX, WG_POP_GENOME_SUFFIX + '.2.bt2'),
-        idx3 = os.path.join(DIR_POP_GENOME_BLOCK_IDX, WG_POP_GENOME_SUFFIX + '.3.bt2'),
-        idx4 = os.path.join(DIR_POP_GENOME_BLOCK_IDX, WG_POP_GENOME_SUFFIX + '.4.bt2'),
-        idx5 = os.path.join(DIR_POP_GENOME_BLOCK_IDX, WG_POP_GENOME_SUFFIX + '.rev.1.bt2'),
-        idx6 = os.path.join(DIR_POP_GENOME_BLOCK_IDX, WG_POP_GENOME_SUFFIX + '.rev.2.bt2')
-    params:
-        index = os.path.join(DIR_POP_GENOME_BLOCK_IDX, WG_POP_GENOME_SUFFIX)
-    output:
-        sam = PREFIX_SECOND_PASS + '.sam'
-    threads: THREADS
-    shell:
-        'bowtie2 --reorder --threads {THREADS} -x {params.index} -U {input.reads1} -S {output.sam}'
+if ALIGNER == 'bowtie2':
+    rule refflow_align_secondpass_single_end:
+        input:
+            [os.path.join(DIR_POP_GENOME_BLOCK_IDX, WG_POP_GENOME_SUFFIX + '.%s.bt2' % ind)
+                    for ind in IDX_ITEMS],
+            reads1 = os.path.join(DIR_FIRST_PASS,
+                EXP_LABEL + '-major-mapqlt' + ALN_MAPQ_THRSD + '_1.fq'),
+        params:
+            index = os.path.join(DIR_POP_GENOME_BLOCK_IDX, WG_POP_GENOME_SUFFIX)
+        output:
+            sam = PREFIX_SECOND_PASS + '.sam'
+        threads: THREADS
+        shell:
+            'bowtie2 --reorder --threads {THREADS} -x {params.index} -U {input.reads1} -S {output.sam}'
+else:   # bwa-mem2
+    rule refflow_align_secondpass_single_end:
+        input:
+           [os.path.join(DIR_POP_GENOME_BLOCK, WG_POP_GENOME_SUFFIX + '.fa.%s' % ind)
+                for ind in IDX_ITEMS],
+            reads1 = os.path.join(DIR_FIRST_PASS,
+                EXP_LABEL + '-major-mapqlt' + ALN_MAPQ_THRSD + '_1.fq'),
+        params:
+            reference = os.path.join(DIR_POP_GENOME_BLOCK, WG_POP_GENOME_SUFFIX + '.fa')
+        output:
+            sam = PREFIX_SECOND_PASS + '.sam'
+        threads: THREADS
+        shell:
+            'bwa-mem2 mem -T 0 -t {threads} {params.reference} {input.reads1} | samtools view -h -F 2048  | samtools sort -n -o {output.sam}'
 
 ''' Merge refflow results. '''
 rule refflow_merge_secondpass:

@@ -101,31 +101,47 @@ rule build_pop_genome:
                 --out-prefix {params.prefix} \
                 --include-indels')
 
-rule build_pop_genome_index:
-    input:
-        genome = os.path.join(DIR_POP_GENOME_BLOCK, WG_POP_GENOME_SUFFIX + '.fa')
-    output:
-        os.path.join(DIR_POP_GENOME_BLOCK_IDX, WG_POP_GENOME_SUFFIX + '.1.bt2'),
-        os.path.join(DIR_POP_GENOME_BLOCK_IDX, WG_POP_GENOME_SUFFIX + '.2.bt2'),
-        os.path.join(DIR_POP_GENOME_BLOCK_IDX, WG_POP_GENOME_SUFFIX + '.3.bt2'),
-        os.path.join(DIR_POP_GENOME_BLOCK_IDX, WG_POP_GENOME_SUFFIX + '.4.bt2'),
-        os.path.join(DIR_POP_GENOME_BLOCK_IDX, WG_POP_GENOME_SUFFIX + '.rev.1.bt2'),
-        os.path.join(DIR_POP_GENOME_BLOCK_IDX, WG_POP_GENOME_SUFFIX + '.rev.2.bt2')
-    params:
-        os.path.join(DIR_POP_GENOME_BLOCK_IDX, WG_POP_GENOME_SUFFIX)
-    threads: THREADS
-    shell:
-        'bowtie2-build --threads {threads} {input.genome} {params};'
-
-rule check_pop_genome:
-    input:
-        expand(
-            DIR_POP_GENOME_BLOCK_IDX + WG_POP_GENOME_SUFFIX + '.{IDX_ITEMS}.bt2',
-            GROUP=GROUP, IDX_ITEMS=IDX_ITEMS, POP_LEVEL=POP_LEVEL
-        )
-    output:
-        touch(temp(os.path.join(DIR, 'prepare_pop_genome.done')))
-
+if ALIGNER == 'bowtie2':
+    rule build_pop_genome_index:
+        input:
+            genome = os.path.join(DIR_POP_GENOME_BLOCK, WG_POP_GENOME_SUFFIX + '.fa')
+        output:
+            [os.path.join(DIR_POP_GENOME_BLOCK_IDX, WG_POP_GENOME_SUFFIX + '.%s.bt2' % ind)
+		for ind in IDX_ITEMS]
+        params:
+            os.path.join(DIR_POP_GENOME_BLOCK_IDX, WG_POP_GENOME_SUFFIX)
+        threads: THREADS
+        shell:
+            'bowtie2-build --threads {threads} {input.genome} {params};'
+else:  # 'bwa-mem2'
+    rule build_pop_genome_index:
+        input:
+            genome = os.path.join(DIR_POP_GENOME_BLOCK, WG_POP_GENOME_SUFFIX + '.fa')
+        output:
+            [os.path.join(DIR_POP_GENOME_BLOCK, WG_POP_GENOME_SUFFIX + '.fa.%s' % ind)
+		for ind in IDX_ITEMS]
+        threads: 1
+        shell:
+            'bwa-mem2 index {input}'
+if ALIGNER == 'bowtie2':	
+    rule check_pop_genome:
+        input:
+            expand(
+                DIR_POP_GENOME_BLOCK_IDX + WG_POP_GENOME_SUFFIX + '.{IDX_ITEMS}.bt2',
+                GROUP=GROUP, IDX_ITEMS=IDX_ITEMS, POP_LEVEL=POP_LEVEL
+            )
+        output:
+            touch(temp(os.path.join(DIR, 'prepare_pop_genome.done')))
+else:  # 'bwa-mem2'
+    rule check_pop_genome:
+        input:
+            expand(
+                DIR_POP_GENOME_BLOCK + WG_POP_GENOME_SUFFIX + '.fa.{IDX_ITEMS}',
+                GROUP=GROUP, IDX_ITEMS=IDX_ITEMS, 
+                POP_LEVEL=POP_LEVEL
+            )
+        output:
+            touch(temp(os.path.join(DIR, 'prepare_pop_genome.done')))
 
 '''
 Rules for building indexes for liftover.

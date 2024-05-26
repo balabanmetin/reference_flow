@@ -35,6 +35,9 @@ CHR_PREFIX = config['CHR_PREFIX']
 LENGTH_MAP = config['LENGTH_MAP']
 CHROM_MAP = config['CHROM_MAP']
 
+ALIGNER = config['ALIGNER']
+assert ALIGNER in ['bowtie2', 'bwa-mem2']
+
 FAMILY = config['FAMILY']
 SPOP = config['SPOP']
 BCFTOOLS = config['BCFTOOLS']
@@ -47,8 +50,12 @@ THREADS = config['THREADS']
 RAND_SEED = config['RAND_SEED']
 ''''''
 
-# Bowtie 2 index extensions
-IDX_ITEMS = ['1', '2', '3', '4', 'rev.1', 'rev.2']
+if ALIGNER == 'bowtie2':
+    # Bowtie 2 index extensions
+    IDX_ITEMS = ['1', '2', '3', '4', 'rev.1', 'rev.2']
+else:
+    # bwa-mem2 index extensions
+    IDX_ITEMS = ['amb', 'ann', 'bwt.2bit.64', '0123', 'pac']
 
 # Prefixes and directory paths for major-allele reference contruction and indexing
 PREFIX_MAJOR_F = os.path.join(DIR, 'major/{CHROM}_filtered_major')
