@@ -103,7 +103,7 @@ snakemake -j 32
 Instead of bowtie2, reference flow can use bwa-mem2 for aligning reads. Users must set:
 
 ```
-ALIGNER = 'bowtie2'
+ALIGNER = 'bwa-mem2'
 ```
 in the config file.
 
