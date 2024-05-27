@@ -19,6 +19,8 @@ This is different from the number specified by `snakemake -j <t>`, which is the 
 
 - `SORT_SAM` : whether to sort the final SAM output
 
+- `ALIGNER` :  Alignment method. The workflow supports bowtie2 or bwa-mem2.
+
 - `ALN_MAPQ_THRSD` : mapping quality cutoff to split read into committed and deferred groups
 
 

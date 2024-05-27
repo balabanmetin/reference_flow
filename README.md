@@ -97,3 +97,14 @@ When all set, run
 ```
 snakemake -j 32
 ```
+
+## Running reference flow with bwa-mem2
+
+Instead of bowtie2, reference flow can use bwa-mem2 for aligning reads. Users must set:
+
+```
+ALIGNER = 'bowtie2'
+```
+in the config file.
+
+ Reference flow does not support supplentary read alignments when coupled with bwa-mem2. Pre-build indices for bwa-mem2 are not available to download but users can build them by setting the `USE_PREBUILT` option to `False`, which runs the complete reference flow pipeline.
